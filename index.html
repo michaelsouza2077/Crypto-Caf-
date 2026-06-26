@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Café Miner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 🌐 TELA DE LOGIN / SIGN UP -->
+    <div id="login-screen" class="login-overlay">
+        <div class="login-split-container">
+            <!-- LADO ESQUERDO: BOAS-VINDAS -->
+            <div class="login-left-banner">
+                <div class="banner-text">
+                    <h2>☕ Crypto Café Miner</h2>
+                    <p>O simulador definitivo de mineração Web3!</p>
+                </div>
+            </div>
+            
+            <!-- LADO DIREITO: FORMULÁRIO -->
+            <div class="login-right-form">
+                <div class="form-box">
+                    <div class="login-logo">⚡</div>
+                    <h3>LOG IN OR SIGN UP</h3>
+                    
+                    <form id="auth-form" onsubmit="event.preventDefault(); handleAuth();">
+                        <div class="login-input-group">
+                            <label>Email</label>
+                            <input type="email" id="login-email" placeholder="Enter email" required autocomplete="off">
+                        </div>
+                        
+                        <button type="submit" class="btn-auth-submit">CONTINUE WITH EMAIL</button>
+                    </form>
+                    
+                    <div class="login-divider"><span>or</span></div>
+                    
+                    <button class="btn-social google" onclick="handleAuth()">
+                        <img src="https://google.com" alt="G"> Log in With Google
+                    </button>
+                    
+                    <button class="btn-social twitter" onclick="handleAuth()">
+                        <span>𝕏</span> Twitter
+                    </button>
+                    
+                    <p class="terms-txt">By proceeding, you agree to our Terms of Use & Privacy Policy</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎮 PAINEL PRINCIPAL DO JOGO -->
+    <div class="app-container">
+        
+        <!-- BARRA LATERAL -->
+        <nav class="sidebar">
+            <div class="logo">☕</div>
+            <button class="nav-btn active">⚡ Mineração</button>
+            <button class="nav-btn">🛒 Loja</button>
+            <button class="nav-btn">📦 Inventário</button>
+            <button class="nav-btn logout-btn" onclick="handleLogout()">🚪 Sair</button>
+        </nav>
+
+        <!-- ÁREA PRINCIPAL -->
+        <main class="main-content">
+            
+            <!-- BARRA SUPERIOR CRYPTO -->
+            <header class="top-bar-crypto">
+                <div class="crypto-stat">
+                    <span class="label-yellow">🪙 MOEDA DO JOGO</span>
+                    <p class="value-yellow"><span id="cafecoin-balance">50.00</span> CC</p>
+                </div>
+                <div class="crypto-stat wallet-actions-area">
+                    <div>
+                        <span class="label-green">🟣 CARTEIRA SAQUE</span>
+                        <p class="value-green">MATIC: <span id="matic-balance">0.000000000000</span></p>
+                    </div>
+                    <div class="wallet-buttons">
+                        <button class="wallet-btn deposit" id="deposit-btn">💱 Comprar MATIC</button>
+                        <button class="wallet-btn withdraw" id="withdraw-btn">📤 Retirar</button>
+                    </div>
+                </div>
+                <div class="crypto-stat">
+                    <span class="label-white">📈 HASH TOTAL</span>
+                    <p class="value-white"><span id="mining-power">0.00</span> H/s</p>
+                </div>
+            </header>
+
+            <!-- CRONÔMETRO -->
+            <div class="timer-banner" id="timer-banner">
+                ⚠️ SISTEMA DESLIGADO: Coloque uma máquina para iniciar a mineração.
+            </div>
+
+            <!-- ABA 1: MINERAÇÃO -->
+            <section id="tab-kitchen" class="tab-content active">
+                <div class="room-view">
+                    <div class="room-header">
+                        <div class="room-title-area">
+                            <h2 id="room-name-display">SALA INICIAL (1/3)</h2>
+                        </div>
+                        <div class="room-actions">
+                            <div class="room-capacity">Racks: <span id="rack-count">0</span> / 6</div>
+                            <button id="buy-room-btn" class="expand-btn">➕ NOVA SALA (500 CC)</button>
+                        </div>
+                    </div>
+                    <p class="instruction-tip">💡 Clique em um quadrado ocupado para remover a máquina.</p>
+                    
+                    <div class="racks-grid-squares">
+                        <div class="rack-square-slot" id="shelf-1-1"><div class="empty-square">Vazio</div></div>
+                        <div class="rack-square-slot" id="shelf-1-2"><div class="empty-square">Vazio</div></div>
+                        <div class="rack-square-slot" id="shelf-1-3"><div class="empty-square">Vazio</div></div>
+                        <div class="rack-square-slot" id="shelf-2-1"><div class="empty-square">Vazio</div></div>
+                        <div class="rack-square-slot" id="shelf-2-2"><div class="empty-square">Vazio</div></div>
+                        <div class="rack-square-slot" id="shelf-2-3"><div class="empty-square">Vazio</div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ABA 2: LOJA -->
+            <section id="tab-shop" class="tab-content">
+                <h2>🛒 Loja de Máquinas</h2>
+                <p>Compre equipamentos usando suas CaféCoins (CC) acumuladas.</p>
+                <div class="shop-grid">
+                    <div class="shop-card">
+                        <h3>⚡ Servidor Básico v1</h3>
+                        <p class="desc">Hash rate estável para iniciantes: +2.50 H/s.</p>
+                        <p class="price">Preço: 10.00 CC</p>
+                        <button class="buy-btn" onclick="buyItem('Servidor Básico v1', 10.00, 2.50)">Comprar</button>
+                    </div>
+                    <div class="shop-card">
+                        <h3>🖥️ Placa Antminer S9</h3>
+                        <p class="desc">Aumenta consideravelmente o Hash rate: +12.00 H/s.</p>
+                        <p class="price">Preço: 40.00 CC</p>
+                        <button class="buy-btn" onclick="buyItem('Placa Antminer S9', 40.00, 12.00)">Comprar</button>
+                    </div>
+                    <div class="shop-card">
+                        <h3>🚀 Rack Minerador Pro</h3>
+                        <p class="desc">Alta performance de mineração digital: +35.00 H/s.</p>
+                        <p class="price">Preço: 120.00 CC</p>
+                        <button class="buy-btn" onclick="buyItem('Rack Minerador Pro', 120.00, 35.00)">Comprar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ABA 3: INVENTÁRIO -->
+            <section id="tab-inventory" class="tab-content">
+                <h2>📦 Seu Inventário</h2>
+                <div id="inventory-list" class="inventory-grid">
+                    <p class="empty-msg">Seu inventário está vazio. Visite a loja!</p>
+                </div>
+            </section>
+
+            <!-- PAINEL VISUAL DE SAQUE -->
+            <div id="withdraw-modal" class="modal-overlay">
+                <div class="modal-box">
+                    <div class="modal-header">
+                        <h3>📤 Solicitar Retirada (MATIC)</h3>
+                        <button id="close-modal-btn" class="close-btn">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="input-group">
+                            <label>Endereço da sua carteira Polygon (MATIC):</label>
+                            <input type="text" id="wallet-input" placeholder="Cole sua carteira 0x..." autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label>Quantidade a sacar:</label>
+                            <input type="number" id="withdraw-amount-input" placeholder="0.00" step="any">
+                            <small class="available-txt">Disponível: <span id="modal-available-matic">0.00</span> MATIC</small>
+                        </div>
+                        <button id="confirm-withdraw-btn" class="submit-withdraw-btn">Confirmar Saque</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
