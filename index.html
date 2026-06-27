@@ -1,194 +1,244 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Café Miner - LTC</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #0a0e14; 
-            color: #fff; 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            padding: 20px;
-        }
-       .header {
-            background: #1a1f29;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #2a3142;
-        }
-       .carteira h3 { color: #4CAF50; margin-bottom: 10px; }
-       .saldo { font-size: 24px; font-weight: bold; color: #4CAF50; }
-       .btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
-        }
-       .btn:hover { background: #45a049; }
-       .btn-saque { background: #f44336; }
-       .btn-saque:hover { background: #da190b; }
-       .sala {
-            background: #1a1f29;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #2a3142;
-        }
-       .sala h3 { color: #2196F3; margin-bottom: 15px; }
-       .slots {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-       .slot {
-            background: #2a3142;
-            border: 2px solid #3a4255;
-            border-radius: 8px;
-            height: 150px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-       .slot:hover { border-color: #4CAF50; transform: translateY(-5px); }
-       .slot.vazio { color: #666; }
-       .slot.ocupado { background: #1e3a2f; border-color: #4CAF50; }
-       .maquina-nome { font-weight: bold; margin-bottom: 5px; }
-       .hash { color: #4CAF50; font-size: 18px; }
-       .stats {
-            background: #1a1f29;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #2a3142;
-            text-align: center;
-        }
-       .hash-total { font-size: 28px; color: #2196F3; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>💎 Crypto Café Miner</h1>
-        <div class="carteira">
-            <h3>SUA CARTEIRA</h3>
-            <div class="saldo"><span id="saldoLTC">0.00</span> LTC</div>
-            <button class="btn" onclick="comprarLTC()">Comprar LTC</button>
-            <button class="btn btn-saque" onclick="sacarLTC()">Retirar</button>
-        </div>
-    </div>
+// GAME STATE
+let gameData = {
+    email: '',
+    cafecoin: 1000,
+    litecoin: 0,
+    miningPower: 0,
+    machines: [],
+    inventory: [],
+    currentRoom: 1,
+    maxRacks: 6
+};
 
-    <div class="stats">
-        <div>HASH TOTAL</div>
-        <div class="hash-total"><span id="hashTotal">0.00</span> H/s</div>
-    </div>
+// MÁQUINAS DISPONÍVEIS
+const SHOP_ITEMS = {
+    'Miner Cafeteira': { price: 50, hash: 5, name: '☕ Miner Cafeteira' },
+    'Miner Croissant': { price: 120, hash: 12, name: '🥐 Miner Croissant' },
+    'Miner Espresso Pro': { price: 300, hash: 30, name: '⚡ Miner Espresso Pro' }
+};
 
-    <div class="sala">
-        <h3>🖥️ SALA INICIAL (<span id="slotsOcupados">0</span>/5)</h3>
-        <p>Clique em um slot vazio para comprar um Servidor Básico por 10 LTC</p>
-        <div class="slots" id="slotsContainer"></div>
-    </div>
+// INICIALIZAÇÃO
+document.addEventListener('DOMContentLoaded', function() {
+    loadGame();
+    setupEventListeners();
+    updateDisplay();
+    checkLogin();
+});
 
-    <script>
-        let saldoLTC = 100.00; // Começa com 100 LTC pra testar
-        let maquinas = [];
-        const PRECO_MAQUINA = 10;
-        const HASH_MAQUINA = 2.5;
-        const MAX_SLOTS = 5;
+function setupEventListeners() {
+    // Navegação
+    document.querySelectorAll('.nav-btn').forEach((btn, index) => {
+        btn.onclick = () => switchTab(index);
+    });
+    
+    // Botões carteira
+    document.getElementById('deposit-btn').onclick = depositLTC;
+    document.getElementById('withdraw-btn').onclick = openWithdrawModal;
+    document.getElementById('confirm-withdraw-btn').onclick = confirmWithdraw;
+    document.getElementById('close-modal-btn').onclick = closeWithdrawModal;
+    document.getElementById('buy-room-btn').onclick = buyRoom;
+}
 
-        function atualizarTela() {
-            document.getElementById('saldoLTC').innerText = saldoLTC.toFixed(2);
-            document.getElementById('slotsOcupados').innerText = maquinas.length;
-            
-            let hashTotal = maquinas.length * HASH_MAQUINA;
-            document.getElementById('hashTotal').innerText = hashTotal.toFixed(2);
-            
-            const container = document.getElementById('slotsContainer');
-            container.innerHTML = '';
-            
-            for (let i = 0; i < MAX_SLOTS; i++) {
-                const slot = document.createElement('div');
-                if (maquinas[i]) {
-                    slot.className = 'slot ocupado';
-                    slot.innerHTML = `
-                        <div class="maquina-nome">Servidor Básico</div>
-                        <div>v1</div>
-                        <div class="hash">${HASH_MAQUINA} H/s</div>
-                    `;
-                } else {
-                    slot.className = 'slot vazio';
-                    slot.innerHTML = `
-                        <div>VAZIO</div>
-                        <div style="font-size:12px; margin-top:5px;">Clique pra comprar</div>
-                    `;
-                    slot.onclick = () => comprarMaquina(i);
-                }
-                container.appendChild(slot);
-            }
+function checkLogin() {
+    if (!gameData.email) {
+        document.getElementById('login-screen').style.display = 'flex';
+    } else {
+        document.getElementById('login-screen').style.display = 'none';
+    }
+}
+
+function handleAuth() {
+    const email = document.getElementById('email-input').value;
+    const pass = document.getElementById('password-input').value;
+    if (email && pass) {
+        gameData.email = email;
+        saveGame();
+        document.getElementById('login-screen').style.display = 'none';
+        updateDisplay();
+    }
+}
+
+function handleLogout() {
+    if (confirm('Sair do jogo?')) {
+        localStorage.removeItem('cafeMinerSave');
+        location.reload();
+    }
+}
+
+function switchTab(index) {
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    
+    document.querySelectorAll('.nav-btn')[index].classList.add('active');
+    document.querySelectorAll('.tab-content')[index].classList.add('active');
+}
+
+function buyItem(name, price, hash) {
+    if (gameData.cafecoin >= price) {
+        gameData.cafecoin -= price;
+        gameData.inventory.push({ name: name, hash: hash, id: Date.now() });
+        updateDisplay();
+        saveGame();
+        alert(`${name} comprado! Vá pro Inventário pra instalar.`);
+    } else {
+        alert('CaféCoins insuficiente!');
+    }
+    updateInventory();
+}
+
+function updateInventory() {
+    const list = document.getElementById('inventory-list');
+    if (gameData.inventory.length === 0) {
+        list.innerHTML = '<p class="empty-msg">Seu inventário está vazio. Visite a loja!</p>';
+        return;
+    }
+    
+    list.innerHTML = '';
+    gameData.inventory.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'shop-card';
+        card.innerHTML = `
+            <h3>${item.name}</h3>
+            <p class="hash">+${item.hash} H/s</p>
+            <button onclick="installMachine(${index})">Instalar</button>
+        `;
+        list.appendChild(card);
+    });
+}
+
+function installMachine(index) {
+    if (gameData.machines.length >= gameData.maxRacks) {
+        alert('Sala lotada! Compre nova sala.');
+        return;
+    }
+    
+    const machine = gameData.inventory.splice(index, 1)[0];
+    gameData.machines.push(machine);
+    gameData.miningPower += machine.hash;
+    
+    updateDisplay();
+    updateInventory();
+    updateRacks();
+    saveGame();
+}
+
+function updateRacks() {
+    for (let i = 1; i <= 6; i++) {
+        for (let j = 1; j <= 3; j++) {
+            const shelf = document.getElementById(`shelf-${i}-${j}`);
+            if (shelf) shelf.innerHTML = '<div class="empty-square">Vazio</div>';
         }
-
-        function comprarMaquina(slot) {
-            if (maquinas.length >= MAX_SLOTS) {
-                alert('Sala lotada! 5/5');
-                return;
-            }
-            if (saldoLTC >= PRECO_MAQUINA) {
-                saldoLTC -= PRECO_MAQUINA;
-                maquinas.push({ id: Date.now(), hash: HASH_MAQUINA });
-                atualizarTela();
-            } else {
-                alert('LTC insuficiente! Você precisa de ' + PRECO_MAQUINA + ' LTC');
-            }
+    }
+    
+    gameData.machines.forEach((machine, index) => {
+        const row = Math.floor(index / 3) + 1;
+        const col = (index % 3) + 1;
+        const shelf = document.getElementById(`shelf-${row}-${col}`);
+        if (shelf) {
+            shelf.innerHTML = `
+                <div class="machine-installed">
+                    <div>${machine.name}</div>
+                    <div class="hash">${machine.hash} H/s</div>
+                </div>
+            `;
         }
+    });
+    
+    // Timer banner
+    const banner = document.getElementById('timer-banner');
+    if (gameData.machines.length > 0) {
+        banner.innerHTML = '✅ SISTEMA OPERANDO: Minerando Litecoin...';
+        banner.style.background = '#1e3a2f';
+    } else {
+        banner.innerHTML = '⚠️ SISTEMA DESLIGADO: Coloque uma máquina para iniciar a mineração.';
+        banner.style.background = '#3a1e1e';
+    }
+}
 
-        function comprarLTC() {
-            let valor = prompt('Quantos LTC deseja comprar?');
-            if (valor &&!isNaN(valor)) {
-                saldoLTC += parseFloat(valor);
-                atualizarTela();
-                alert(valor + ' LTC adicionados!');
-            }
-        }
+function buyRoom() {
+    const price = 500;
+    if (gameData.cafecoin >= price) {
+        gameData.cafecoin -= price;
+        gameData.maxRacks += 6;
+        gameData.currentRoom++;
+        document.getElementById('room-name-display').innerText = `SALA ${gameData.currentRoom} (1/3)`;
+        updateDisplay();
+        saveGame();
+        alert('Nova sala comprada! +6 slots');
+    } else {
+        alert('CaféCoins insuficiente! Precisa de 500 CC');
+    }
+}
 
-        function sacarLTC() {
-            let valor = prompt('Quantos LTC deseja sacar?\nDisponível: ' + saldoLTC.toFixed(2) + ' LTC');
-            if (valor &&!isNaN(valor)) {
-                valor = parseFloat(valor);
-                if (valor <= saldoLTC && valor > 0) {
-                    let endereco = prompt('Cole seu endereço Litecoin:');
-                    if (endereco) {
-                        saldoLTC -= valor;
-                        atualizarTela();
-                        alert('Saque de ' + valor + ' LTC solicitado para:\n' + endereco);
-                    }
-                } else {
-                    alert('Valor inválido ou saldo insuficiente!');
-                }
-            }
-        }
+function depositLTC() {
+    const valor = prompt('Quantos LTC deseja depositar na carteira do jogo?');
+    if (valor &&!isNaN(valor) && parseFloat(valor) > 0) {
+        gameData.litecoin += parseFloat(valor);
+        updateDisplay();
+        saveGame();
+        alert(`${valor} LTC depositados!`);
+    }
+}
 
-        // Mineração automática: ganha 0.01 LTC por máquina a cada 5 segundos
-        setInterval(() => {
-            let ganho = maquinas.length * 0.01;
-            if (ganho > 0) {
-                saldoLTC += ganho;
-                atualizarTela();
-            }
-        }, 5000);
+function openWithdrawModal() {
+    document.getElementById('modal-available-ltc').innerText = gameData.litecoin.toFixed(8);
+    document.getElementById('withdraw-modal').style.display = 'flex';
+}
 
-        atualizarTela();
-    </script>
-</body>
-</html>
+function closeWithdrawModal() {
+    document.getElementById('withdraw-modal').style.display = 'none';
+}
+
+function confirmWithdraw() {
+    const endereco = document.getElementById('wallet-input').value;
+    const valor = parseFloat(document.getElementById('withdraw-amount-input').value);
+    
+    if (!endereco || endereco.length < 10) {
+        alert('Endereço LTC inválido!');
+        return;
+    }
+    if (!valor || valor < 0.001) {
+        alert('Mínimo: 0.001 LTC');
+        return;
+    }
+    if (valor > gameData.litecoin) {
+        alert('Saldo LTC insuficiente!');
+        return;
+    }
+    
+    gameData.litecoin -= valor;
+    updateDisplay();
+    saveGame();
+    closeWithdrawModal();
+    alert(`Saque de ${valor} LTC enviado para:\n${endereco}`);
+}
+
+function updateDisplay() {
+    document.getElementById('cafecoin-balance').innerText = gameData.cafecoin.toFixed(2);
+    document.getElementById('Litecoin-balance').innerText = gameData.litecoin.toFixed(8);
+    document.getElementById('mining-power').innerText = gameData.miningPower.toFixed(2);
+    document.getElementById('rack-count').innerText = gameData.machines.length;
+    updateRacks();
+}
+
+// MINERAÇÃO AUTOMÁTICA - 1 H/s = 0.00000001 LTC por segundo
+setInterval(() => {
+    if (gameData.miningPower > 0) {
+        const ganho = gameData.miningPower * 0.00000001;
+        gameData.litecoin += ganho;
+        updateDisplay();
+        saveGame();
+    }
+}, 1000);
+
+// SAVE/LOAD
+function saveGame() {
+    localStorage.setItem('cafeMinerSave', JSON.stringify(gameData));
+}
+
+function loadGame() {
+    const save = localStorage.getItem('cafeMinerSave');
+    if (save) {
+        gameData = JSON.parse(save);
+    }
+}
