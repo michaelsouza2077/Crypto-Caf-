@@ -2,104 +2,193 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Café Miner - LTC</title>
     <style>
-        body { background: #0a0e14; color: #fff; font-family: Arial; padding: 20px; }
-       .carteira { background: #1a1f29; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #45a049; }
-       .slot { background: #2a3142; width: 150px; height: 150px; display: inline-block; margin: 10px; border-radius: 8px; text-align: center; padding-top: 60px; }
-        #enderecoLTC { background: #333; padding: 10px; border-radius: 5px; word-break: break-all; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #0a0e14; 
+            color: #fff; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            padding: 20px;
+        }
+       .header {
+            background: #1a1f29;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #2a3142;
+        }
+       .carteira h3 { color: #4CAF50; margin-bottom: 10px; }
+       .saldo { font-size: 24px; font-weight: bold; color: #4CAF50; }
+       .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+       .btn:hover { background: #45a049; }
+       .btn-saque { background: #f44336; }
+       .btn-saque:hover { background: #da190b; }
+       .sala {
+            background: #1a1f29;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #2a3142;
+        }
+       .sala h3 { color: #2196F3; margin-bottom: 15px; }
+       .slots {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+       .slot {
+            background: #2a3142;
+            border: 2px solid #3a4255;
+            border-radius: 8px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+       .slot:hover { border-color: #4CAF50; transform: translateY(-5px); }
+       .slot.vazio { color: #666; }
+       .slot.ocupado { background: #1e3a2f; border-color: #4CAF50; }
+       .maquina-nome { font-weight: bold; margin-bottom: 5px; }
+       .hash { color: #4CAF50; font-size: 18px; }
+       .stats {
+            background: #1a1f29;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #2a3142;
+            text-align: center;
+        }
+       .hash-total { font-size: 28px; color: #2196F3; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>Crypto Café Miner</h1>
-    
-    <div class="carteira">
-        <h3>💰 SUA CARTEIRA</h3>
-        <p>MATIC no jogo: <span id="saldoMatic">0.00</span></p>
-        <button onclick="conectarCarteira()">Conectar MetaMask</button>
-        <p id="statusCarteira">Carteira não conectada</p>
+    <div class="header">
+        <h1>💎 Crypto Café Miner</h1>
+        <div class="carteira">
+            <h3>SUA CARTEIRA</h3>
+            <div class="saldo"><span id="saldoLTC">0.00</span> LTC</div>
+            <button class="btn" onclick="comprarLTC()">Comprar LTC</button>
+            <button class="btn btn-saque" onclick="sacarLTC()">Retirar</button>
+        </div>
     </div>
 
-    <div class="carteira">
-        <h3>⚡ DEPOSITAR LITECOIN</h3>
-        <p>1. Envie LTC para este endereço:</p>
-        <div id="enderecoLTC">LEtH7oWyyHX4b9sDNQe9NBZpnSpubXaWQH</div>
-        <button onclick="copiarEndereco()">Copiar Endereço</button>
-        <p>2. Após enviar, clique aqui:</p>
-        <button onclick="verificarDeposito()">Já Depositei</button>
-        <p><b>Taxa:</b> 1 LTC = 100 MATIC no jogo</p>
+    <div class="stats">
+        <div>HASH TOTAL</div>
+        <div class="hash-total"><span id="hashTotal">0.00</span> H/s</div>
     </div>
 
-    <h3>SALA INICIAL (<span id="salasOcupadas">0</span>/5)</h3>
-    <div id="slots"></div>
+    <div class="sala">
+        <h3>🖥️ SALA INICIAL (<span id="slotsOcupados">0</span>/5)</h3>
+        <p>Clique em um slot vazio para comprar um Servidor Básico por 10 LTC</p>
+        <div class="slots" id="slotsContainer"></div>
+    </div>
 
     <script>
-        let saldoMatic = 0;
-        let carteiraConectada = null;
+        let saldoLTC = 100.00; // Começa com 100 LTC pra testar
         let maquinas = [];
+        const PRECO_MAQUINA = 10;
+        const HASH_MAQUINA = 2.5;
+        const MAX_SLOTS = 5;
 
-        // ENDEREÇO LTC DO JOGO - TROCA PELO SEU
-        const ENDERECO_LTC_JOGO = "LEtH7oWyyHX4b9sDNQe9NBZpnSpubXaWQH";
-
-        function conectarCarteira() {
-            if (typeof window.ethereum!== 'undefined') {
-                ethereum.request({ method: 'eth_requestAccounts' }).then(accounts => {
-                    carteiraConectada = accounts[0];
-                    document.getElementById('statusCarteira').innerText = `Conectado: ${carteiraConectada.slice(0,6)}...${carteiraConectada.slice(-4)}`;
-                });
-            } else {
-                alert('Instala o MetaMask primeiro!');
+        function atualizarTela() {
+            document.getElementById('saldoLTC').innerText = saldoLTC.toFixed(2);
+            document.getElementById('slotsOcupados').innerText = maquinas.length;
+            
+            let hashTotal = maquinas.length * HASH_MAQUINA;
+            document.getElementById('hashTotal').innerText = hashTotal.toFixed(2);
+            
+            const container = document.getElementById('slotsContainer');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < MAX_SLOTS; i++) {
+                const slot = document.createElement('div');
+                if (maquinas[i]) {
+                    slot.className = 'slot ocupado';
+                    slot.innerHTML = `
+                        <div class="maquina-nome">Servidor Básico</div>
+                        <div>v1</div>
+                        <div class="hash">${HASH_MAQUINA} H/s</div>
+                    `;
+                } else {
+                    slot.className = 'slot vazio';
+                    slot.innerHTML = `
+                        <div>VAZIO</div>
+                        <div style="font-size:12px; margin-top:5px;">Clique pra comprar</div>
+                    `;
+                    slot.onclick = () => comprarMaquina(i);
+                }
+                container.appendChild(slot);
             }
         }
 
-        function copiarEndereco() {
-            navigator.clipboard.writeText(ENDERECO_LTC_JOGO);
-            alert('Endereço LTC copiado!');
-        }
-
-        function verificarDeposito() {
-            if (!carteiraConectada) {
-                alert('Conecta sua carteira primeiro!');
+        function comprarMaquina(slot) {
+            if (maquinas.length >= MAX_SLOTS) {
+                alert('Sala lotada! 5/5');
                 return;
             }
-            // AQUI VOCÊ PRECISA DE UMA API PRA CHECAR BLOCKCHAIN
-            // Por enquanto vamos simular: adiciona 100 MATIC fake
-            saldoMatic += 100;
-            atualizarSaldo();
-            alert('Depósito confirmado! +100 MATIC adicionados.');
-        }
-
-        function comprarMaquina() {
-            if (saldoMatic >= 10) {
-                saldoMatic -= 10;
-                maquinas.push({tipo: 'Minerador Básico v1', hash: 5});
-                atualizarSaldo();
-                renderizarSlots();
+            if (saldoLTC >= PRECO_MAQUINA) {
+                saldoLTC -= PRECO_MAQUINA;
+                maquinas.push({ id: Date.now(), hash: HASH_MAQUINA });
+                atualizarTela();
             } else {
-                alert('MATIC insuficiente! Deposite LTC.');
+                alert('LTC insuficiente! Você precisa de ' + PRECO_MAQUINA + ' LTC');
             }
         }
 
-        function atualizarSaldo() {
-            document.getElementById('saldoMatic').innerText = saldoMatic.toFixed(2);
+        function comprarLTC() {
+            let valor = prompt('Quantos LTC deseja comprar?');
+            if (valor &&!isNaN(valor)) {
+                saldoLTC += parseFloat(valor);
+                atualizarTela();
+                alert(valor + ' LTC adicionados!');
+            }
         }
 
-        function renderizarSlots() {
-            const slotsDiv = document.getElementById('slots');
-            slotsDiv.innerHTML = '';
-            for (let i = 0; i < 5; i++) {
-                if (maquinas[i]) {
-                    slotsDiv.innerHTML += `<div class="slot">${maquinas[i].tipo}<br>${maquinas[i].hash} H/s</div>`;
+        function sacarLTC() {
+            let valor = prompt('Quantos LTC deseja sacar?\nDisponível: ' + saldoLTC.toFixed(2) + ' LTC');
+            if (valor &&!isNaN(valor)) {
+                valor = parseFloat(valor);
+                if (valor <= saldoLTC && valor > 0) {
+                    let endereco = prompt('Cole seu endereço Litecoin:');
+                    if (endereco) {
+                        saldoLTC -= valor;
+                        atualizarTela();
+                        alert('Saque de ' + valor + ' LTC solicitado para:\n' + endereco);
+                    }
                 } else {
-                    slotsDiv.innerHTML += `<div class="slot" onclick="comprarMaquina()">VAZIO<br>Clique pra comprar</div>`;
+                    alert('Valor inválido ou saldo insuficiente!');
                 }
             }
-            document.getElementById('salasOcupadas').innerText = maquinas.length;
         }
 
-        renderizarSlots();
+        // Mineração automática: ganha 0.01 LTC por máquina a cada 5 segundos
+        setInterval(() => {
+            let ganho = maquinas.length * 0.01;
+            if (ganho > 0) {
+                saldoLTC += ganho;
+                atualizarTela();
+            }
+        }, 5000);
+
+        atualizarTela();
     </script>
 </body>
 </html>
