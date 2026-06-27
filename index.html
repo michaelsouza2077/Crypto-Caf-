@@ -1,244 +1,126 @@
-// GAME STATE
-let gameData = {
-    email: '',
-    cafecoin: 1000,
-    litecoin: 0,
-    miningPower: 0,
-    machines: [],
-    inventory: [],
-    currentRoom: 1,
-    maxRacks: 6
-};
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Café Miner - LTC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-box">
+            <h2>☕ Crypto Café Miner</h2>
+            <p>Minere Litecoin enquanto gerencia seu café</p>
+            <input type="email" placeholder="Email" id="email-input">
+            <input type="password" placeholder="Senha" id="password-input">
+            <button onclick="handleAuth()">Entrar / Cadastrar</button>
+            <small>Seus dados ficam salvos no navegador</small>
+        </div>
+    </div>
 
-// MÁQUINAS DISPONÍVEIS
-const SHOP_ITEMS = {
-    'Miner Cafeteira': { price: 50, hash: 5, name: '☕ Miner Cafeteira' },
-    'Miner Croissant': { price: 120, hash: 12, name: '🥐 Miner Croissant' },
-    'Miner Espresso Pro': { price: 300, hash: 30, name: '⚡ Miner Espresso Pro' }
-};
+    <!-- PAINEL PRINCIPAL -->
+    <div class="game-container">
+        <aside class="sidebar">
+            <div class="logo">☕ CAFÉ MINER</div>
+            <nav>
+                <button class="nav-btn active">🏠 Mineração</button>
+                <button class="nav-btn">🛒 Loja</button>
+                <button class="nav-btn">📦 Inventário</button>
+                <button class="nav-btn logout-btn" onclick="handleLogout()">🚪 Sair</button>
+            </nav>
+            <div class="wallet-box">
+                <p>CaféCoins: <span id="cafecoin-balance">0.00</span> CC</p>
+                <p>Litecoin: <span id="Litcoin-balance">0.00000000</span> LTC</p>
+                <button id="deposit-btn">📥 Depositar</button>
+                <button id="withdraw-btn">📤 Retirar</button>
+            </div>
+        </aside>
 
-// INICIALIZAÇÃO
-document.addEventListener('DOMContentLoaded', function() {
-    loadGame();
-    setupEventListeners();
-    updateDisplay();
-    checkLogin();
-});
-
-function setupEventListeners() {
-    // Navegação
-    document.querySelectorAll('.nav-btn').forEach((btn, index) => {
-        btn.onclick = () => switchTab(index);
-    });
-    
-    // Botões carteira
-    document.getElementById('deposit-btn').onclick = depositLTC;
-    document.getElementById('withdraw-btn').onclick = openWithdrawModal;
-    document.getElementById('confirm-withdraw-btn').onclick = confirmWithdraw;
-    document.getElementById('close-modal-btn').onclick = closeWithdrawModal;
-    document.getElementById('buy-room-btn').onclick = buyRoom;
-}
-
-function checkLogin() {
-    if (!gameData.email) {
-        document.getElementById('login-screen').style.display = 'flex';
-    } else {
-        document.getElementById('login-screen').style.display = 'none';
-    }
-}
-
-function handleAuth() {
-    const email = document.getElementById('email-input').value;
-    const pass = document.getElementById('password-input').value;
-    if (email && pass) {
-        gameData.email = email;
-        saveGame();
-        document.getElementById('login-screen').style.display = 'none';
-        updateDisplay();
-    }
-}
-
-function handleLogout() {
-    if (confirm('Sair do jogo?')) {
-        localStorage.removeItem('cafeMinerSave');
-        location.reload();
-    }
-}
-
-function switchTab(index) {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    
-    document.querySelectorAll('.nav-btn')[index].classList.add('active');
-    document.querySelectorAll('.tab-content')[index].classList.add('active');
-}
-
-function buyItem(name, price, hash) {
-    if (gameData.cafecoin >= price) {
-        gameData.cafecoin -= price;
-        gameData.inventory.push({ name: name, hash: hash, id: Date.now() });
-        updateDisplay();
-        saveGame();
-        alert(`${name} comprado! Vá pro Inventário pra instalar.`);
-    } else {
-        alert('CaféCoins insuficiente!');
-    }
-    updateInventory();
-}
-
-function updateInventory() {
-    const list = document.getElementById('inventory-list');
-    if (gameData.inventory.length === 0) {
-        list.innerHTML = '<p class="empty-msg">Seu inventário está vazio. Visite a loja!</p>';
-        return;
-    }
-    
-    list.innerHTML = '';
-    gameData.inventory.forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'shop-card';
-        card.innerHTML = `
-            <h3>${item.name}</h3>
-            <p class="hash">+${item.hash} H/s</p>
-            <button onclick="installMachine(${index})">Instalar</button>
-        `;
-        list.appendChild(card);
-    });
-}
-
-function installMachine(index) {
-    if (gameData.machines.length >= gameData.maxRacks) {
-        alert('Sala lotada! Compre nova sala.');
-        return;
-    }
-    
-    const machine = gameData.inventory.splice(index, 1)[0];
-    gameData.machines.push(machine);
-    gameData.miningPower += machine.hash;
-    
-    updateDisplay();
-    updateInventory();
-    updateRacks();
-    saveGame();
-}
-
-function updateRacks() {
-    for (let i = 1; i <= 6; i++) {
-        for (let j = 1; j <= 3; j++) {
-            const shelf = document.getElementById(`shelf-${i}-${j}`);
-            if (shelf) shelf.innerHTML = '<div class="empty-square">Vazio</div>';
-        }
-    }
-    
-    gameData.machines.forEach((machine, index) => {
-        const row = Math.floor(index / 3) + 1;
-        const col = (index % 3) + 1;
-        const shelf = document.getElementById(`shelf-${row}-${col}`);
-        if (shelf) {
-            shelf.innerHTML = `
-                <div class="machine-installed">
-                    <div>${machine.name}</div>
-                    <div class="hash">${machine.hash} H/s</div>
+        <main class="main-content">
+            <!-- ABA MINERAÇÃO -->
+            <div id="tab-kitchen" class="tab-content active">
+                <div class="header-stats">
+                    <div class="stat-card">
+                        <span>Poder Total</span>
+                        <strong><span id="mining-power">0.00</span> H/s</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span>Máquinas Ativas</span>
+                        <strong><span id="rack-count">0</span>/6</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span id="room-name-display">SALA INICIAL (1/3)</span>
+                        <button id="buy-room-btn">+ Nova Sala 500 CC</button>
+                    </div>
                 </div>
-            `;
-        }
-    });
-    
-    // Timer banner
-    const banner = document.getElementById('timer-banner');
-    if (gameData.machines.length > 0) {
-        banner.innerHTML = '✅ SISTEMA OPERANDO: Minerando Litecoin...';
-        banner.style.background = '#1e3a2f';
-    } else {
-        banner.innerHTML = '⚠️ SISTEMA DESLIGADO: Coloque uma máquina para iniciar a mineração.';
-        banner.style.background = '#3a1e1e';
-    }
-}
 
-function buyRoom() {
-    const price = 500;
-    if (gameData.cafecoin >= price) {
-        gameData.cafecoin -= price;
-        gameData.maxRacks += 6;
-        gameData.currentRoom++;
-        document.getElementById('room-name-display').innerText = `SALA ${gameData.currentRoom} (1/3)`;
-        updateDisplay();
-        saveGame();
-        alert('Nova sala comprada! +6 slots');
-    } else {
-        alert('CaféCoins insuficiente! Precisa de 500 CC');
-    }
-}
+                <div id="timer-banner" class="timer-banner">
+                    ⚠️ SISTEMA DESLIGADO: Coloque uma máquina para iniciar a mineração.
+                </div>
 
-function depositLTC() {
-    const valor = prompt('Quantos LTC deseja depositar na carteira do jogo?');
-    if (valor &&!isNaN(valor) && parseFloat(valor) > 0) {
-        gameData.litecoin += parseFloat(valor);
-        updateDisplay();
-        saveGame();
-        alert(`${valor} LTC depositados!`);
-    }
-}
+                <div class="kitchen-grid">
+                    <div class="shelf" id="shelf-1-1"><div class="empty-square">Vazio</div></div>
+                    <div class="shelf" id="shelf-1-2"><div class="empty-square">Vazio</div></div>
+                    <div class="shelf" id="shelf-1-3"><div class="empty-square">Vazio</div></div>
+                    <div class="shelf" id="shelf-2-1"><div class="empty-square">Vazio</div></div>
+                    <div class="shelf" id="shelf-2-2"><div class="empty-square">Vazio</div></div>
+                    <div class="shelf" id="shelf-2-3"><div class="empty-square">Vazio</div></div>
+                </div>
+            </div>
 
-function openWithdrawModal() {
-    document.getElementById('modal-available-ltc').innerText = gameData.litecoin.toFixed(8);
-    document.getElementById('withdraw-modal').style.display = 'flex';
-}
+            <!-- ABA LOJA -->
+            <div id="tab-shop" class="tab-content">
+                <h2>🛒 Loja de Mineração</h2>
+                <div class="shop-grid">
+                    <div class="shop-card">
+                        <h3>☕ Miner Cafeteira</h3>
+                        <p class="desc">Máquina básica pra começar</p>
+                        <p class="hash">+5.00 H/s</p>
+                        <button onclick="buyItem('Miner Cafeteira', 50, 5)">Comprar 50 CC</button>
+                    </div>
+                    <div class="shop-card">
+                        <h3>🥐 Miner Croissant</h3>
+                        <p class="desc">Assa pão e minera junto</p>
+                        <p class="hash">+12.00 H/s</p>
+                        <button onclick="buyItem('Miner Croissant', 120, 12)">Comprar 120 CC</button>
+                    </div>
+                    <div class="shop-card">
+                        <h3>⚡ Miner Espresso Pro</h3>
+                        <p class="desc">Alta performance</p>
+                        <p class="hash">+30.00 H/s</p>
+                        <button onclick="buyItem('Miner Espresso Pro', 300, 30)">Comprar 300 CC</button>
+                    </div>
+                </div>
+            </div>
 
-function closeWithdrawModal() {
-    document.getElementById('withdraw-modal').style.display = 'none';
-}
+            <!-- ABA INVENTÁRIO -->
+            <div id="tab-inventory" class="tab-content">
+                <h2>📦 Seu Inventário</h2>
+                <div id="inventory-list" class="inventory-grid">
+                    <p class="empty-msg">Seu inventário está vazio. Visite a loja!</p>
+                </div>
+            </div>
+        </main>
+    </div>
 
-function confirmWithdraw() {
-    const endereco = document.getElementById('wallet-input').value;
-    const valor = parseFloat(document.getElementById('withdraw-amount-input').value);
-    
-    if (!endereco || endereco.length < 10) {
-        alert('Endereço LTC inválido!');
-        return;
-    }
-    if (!valor || valor < 0.001) {
-        alert('Mínimo: 0.001 LTC');
-        return;
-    }
-    if (valor > gameData.litecoin) {
-        alert('Saldo LTC insuficiente!');
-        return;
-    }
-    
-    gameData.litecoin -= valor;
-    updateDisplay();
-    saveGame();
-    closeWithdrawModal();
-    alert(`Saque de ${valor} LTC enviado para:\n${endereco}`);
-}
+    <!-- MODAL SAQUE -->
+    <div id="withdraw-modal" class="modal">
+        <div class="modal-content">
+            <h3>📤 Sacar Litecoin</h3>
+            <p>Disponível: <span id="modal-available-matic">0.00000000</span> LTC</p>
+            <label>Seu endereço LTC:</label>
+            <input type="text" id="wallet-input" placeholder="L... ou ltc1...">
+            <label>Valor do saque:</label>
+            <input type="number" id="withdraw-amount-input" step="0.00000001" placeholder="0.001">
+            <div class="modal-btns">
+                <button id="confirm-withdraw-btn">Confirmar Saque</button>
+                <button id="close-modal-btn">Cancelar</button>
+            </div>
+            <small>Mínimo: 0.001 LTC | Taxa da rede: ~0.0001 LTC</small>
+        </div>
+    </div>
 
-function updateDisplay() {
-    document.getElementById('cafecoin-balance').innerText = gameData.cafecoin.toFixed(2);
-    document.getElementById('Litecoin-balance').innerText = gameData.litecoin.toFixed(8);
-    document.getElementById('mining-power').innerText = gameData.miningPower.toFixed(2);
-    document.getElementById('rack-count').innerText = gameData.machines.length;
-    updateRacks();
-}
-
-// MINERAÇÃO AUTOMÁTICA - 1 H/s = 0.00000001 LTC por segundo
-setInterval(() => {
-    if (gameData.miningPower > 0) {
-        const ganho = gameData.miningPower * 0.00000001;
-        gameData.litecoin += ganho;
-        updateDisplay();
-        saveGame();
-    }
-}, 1000);
-
-// SAVE/LOAD
-function saveGame() {
-    localStorage.setItem('cafeMinerSave', JSON.stringify(gameData));
-}
-
-function loadGame() {
-    const save = localStorage.getItem('cafeMinerSave');
-    if (save) {
-        gameData = JSON.parse(save);
-    }
-}
+    <script src="script.js"></script>
+</body>
+</html>
